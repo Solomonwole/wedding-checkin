@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -9,8 +10,9 @@ export default function Home() {
         <p className="mt-3 text-muted-foreground">
           Guest management and event check-in system
         </p>
-
-        <Button className="mt-6">Get Started</Button>
+        <Link href="/login">
+          <Button className="mt-6">Get Started</Button>
+        </Link>
       </div>
     </main>
   );

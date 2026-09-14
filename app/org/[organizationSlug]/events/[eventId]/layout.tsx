@@ -1,8 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
-import { EventHeader } from "@/components/events/event-header";
-import { EventSidebar } from "@/components/events/event-sidebar";
+
+import { EventShell } from "@/components/events/event-shell";
 
 interface EventLayoutProps {
   children: React.ReactNode;
@@ -53,13 +53,13 @@ export default async function EventLayout({
     .from("events")
     .select(
       `
-      id,
-      organization_id,
-      name,
-      event_date,
-      venue,
-      status
-    `,
+        id,
+        organization_id,
+        name,
+        event_date,
+        venue,
+        status
+      `,
     )
     .eq("id", eventId)
     .eq("organization_id", organization.id)
@@ -71,19 +71,14 @@ export default async function EventLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <EventHeader
-        organizationName={organization.name}
-        organizationSlug={organization.slug}
-        eventName={event.name}
-        eventStatus={event.status}
-      />
-
-      <div className="flex">
-        <EventSidebar organizationSlug={organization.slug} eventId={event.id} />
-
-        <main className="min-w-0 flex-1">{children}</main>
-      </div>
-    </div>
+    <EventShell
+      organizationName={organization.name}
+      organizationSlug={organization.slug}
+      eventName={event.name}
+      eventId={event.id}
+      eventStatus={event.status}
+    >
+      {children}
+    </EventShell>
   );
 }

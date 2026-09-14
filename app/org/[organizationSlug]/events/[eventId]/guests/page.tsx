@@ -1,14 +1,16 @@
 import Link from "next/link";
-import { Plus, Upload, Search, Users } from "lucide-react";
+
+import { Plus, Upload, Users } from "lucide-react";
 
 import { notFound } from "next/navigation";
-import { InvitationQrDialog } from "@/components/invitations/invitation-qr-dialog";
+
 import { createClient } from "@/lib/supabase/server";
 
-import { Badge } from "@/components/ui/badge";
+import { GuestTable } from "@/components/guests/guest-table";
+
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+
+import { Card, CardContent } from "@/components/ui/card";
 
 interface GuestsPageProps {
   params: Promise<{
@@ -22,6 +24,12 @@ export default async function GuestsPage({ params }: GuestsPageProps) {
 
   const supabase = await createClient();
 
+  /*
+   * ---------------------------------------------------------
+   * Organization
+   * ---------------------------------------------------------
+   */
+
   const { data: organization } = await supabase
     .from("organizations")
     .select("id, name, slug")
@@ -31,6 +39,12 @@ export default async function GuestsPage({ params }: GuestsPageProps) {
   if (!organization) {
     notFound();
   }
+
+  /*
+   * ---------------------------------------------------------
+   * Event
+   * ---------------------------------------------------------
+   */
 
   const { data: event } = await supabase
     .from("events")
@@ -44,19 +58,25 @@ export default async function GuestsPage({ params }: GuestsPageProps) {
     notFound();
   }
 
+  /*
+   * ---------------------------------------------------------
+   * Guests
+   * ---------------------------------------------------------
+   */
+
   const { data: guests, error } = await supabase
     .from("guests")
     .select(
       `
-      id,
-      first_name,
-      last_name,
-      email,
-      phone,
-      category,
-      plus_one,
-      status
-    `,
+        id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        category,
+        plus_one,
+        status
+      `,
     )
     .eq("event_id", event.id)
     .is("deleted_at", null)
@@ -65,16 +85,26 @@ export default async function GuestsPage({ params }: GuestsPageProps) {
     });
 
   if (error) {
-    console.error(error);
+    console.error("Unable to load guests:", error);
   }
 
-  const totalGuests = guests?.length ?? 0;
+  const guestList = guests ?? [];
 
-  const confirmed =
-    guests?.filter((guest) => guest.status === "confirmed").length ?? 0;
+  /*
+   * ---------------------------------------------------------
+   * Stats
+   * ---------------------------------------------------------
+   */
 
-  const checkedIn =
-    guests?.filter((guest) => guest.status === "checked_in").length ?? 0;
+  const totalGuests = guestList.length;
+
+  const confirmed = guestList.filter(
+    (guest) => guest.status === "confirmed",
+  ).length;
+
+  const checkedIn = guestList.filter(
+    (guest) => guest.status === "checked_in",
+  ).length;
 
   const basePath = `/org/${organizationSlug}/events/${eventId}`;
 
@@ -123,73 +153,11 @@ export default async function GuestsPage({ params }: GuestsPageProps) {
           <StatCard title="Checked in" value={checkedIn} />
         </div>
 
-        {/* Guest table */}
+        {/* Guests */}
 
-        <Card className="mt-8">
-          <CardHeader className="border-b">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <CardTitle className="text-base">Guest list</CardTitle>
-
-              <div className="relative w-full sm:w-72">
-                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-
-                <Input placeholder="Search guests..." className="pl-9" />
-              </div>
-            </div>
-          </CardHeader>
-
+        <Card className="mt-8 overflow-hidden">
           <CardContent className="p-0">
-            {totalGuests === 0 ? (
-              <EmptyGuests basePath={basePath} />
-            ) : (
-              <div className="divide-y">
-                {guests?.map((guest) => (
-                  <div
-                    key={guest.id}
-                    className="flex flex-col gap-4 p-5 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center"
-                  >
-                    {/* Avatar */}
-
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium">
-                      {guest.first_name.charAt(0).toUpperCase()}
-                      {guest.last_name.charAt(0).toUpperCase()}
-                    </div>
-
-                    {/* Name */}
-
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium">
-                        {guest.first_name} {guest.last_name}
-                      </p>
-
-                      <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                        {guest.email || guest.phone || "No contact information"}
-                      </p>
-                    </div>
-
-                    {/* Category */}
-
-                    <Badge variant="outline">{guest.category}</Badge>
-
-                    {/* Plus one */}
-
-                    {guest.plus_one && <Badge variant="secondary">+1</Badge>}
-
-                    {/* Status */}
-
-                    <GuestStatus status={guest.status} />
-
-                    {/* Invitation */}
-
-                    <InvitationQrDialog
-                      eventId={event.id}
-                      guestId={guest.id}
-                      guestName={`${guest.first_name} ${guest.last_name}`}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
+            <GuestTable guests={guestList} eventId={event.id} />
           </CardContent>
         </Card>
       </div>
@@ -214,56 +182,5 @@ function StatCard({ title, value }: { title: string; value: number }) {
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function GuestStatus({ status }: { status: string }) {
-  const variants: Record<
-    string,
-    "default" | "secondary" | "outline" | "destructive"
-  > = {
-    invited: "outline",
-    confirmed: "secondary",
-    declined: "destructive",
-    checked_in: "default",
-  };
-
-  return (
-    <Badge variant={variants[status] ?? "outline"} className="capitalize">
-      {status.replace("_", " ")}
-    </Badge>
-  );
-}
-
-function EmptyGuests({ basePath }: { basePath: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-      <div className="flex size-12 items-center justify-center rounded-full bg-muted">
-        <Users className="size-5 text-muted-foreground" />
-      </div>
-
-      <h3 className="mt-4 font-semibold">No guests yet</h3>
-
-      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-        Add your guests manually or import your existing guest list from a CSV
-        file.
-      </p>
-
-      <div className="mt-6 flex gap-2">
-        <Link href={`${basePath}/guests/import`}>
-          <Button variant="outline">
-            <Upload className="mr-2 size-4" />
-            Import CSV
-          </Button>
-        </Link>
-
-        <Link href={`${basePath}/guests/new`}>
-          <Button>
-            <Plus className="mr-2 size-4" />
-            Add guest
-          </Button>
-        </Link>
-      </div>
-    </div>
   );
 }

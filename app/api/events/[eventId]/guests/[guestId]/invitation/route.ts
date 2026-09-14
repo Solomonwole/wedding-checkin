@@ -61,17 +61,17 @@ export async function POST(request: Request, { params }: RouteContext) {
     }
 
     /*
-     * Check if an invitation already exists.
+     * One invitation per guest.
      */
     const { data: existingInvitation } = await supabase
       .from("invitations")
       .select(
         `
-        id,
-        status,
-        sent_at,
-        used_at,
-        revoked_at
+          id,
+          status,
+          sent_at,
+          used_at,
+          revoked_at
         `,
       )
       .eq("guest_id", guestId)
@@ -88,30 +88,38 @@ export async function POST(request: Request, { params }: RouteContext) {
     }
 
     /*
-     * Generate a cryptographically secure token.
+     * Generate the token exactly once.
      */
     const token = generateInvitationToken();
 
     /*
-     * Only store the hash.
+     * Store the hash for secure validation.
      */
     const tokenHash = hashInvitationToken(token);
 
+    /*
+     * Store both:
+     *
+     * token      -> reusable invitation URL
+     * token_hash -> scanner validation
+     */
     const { data: invitation, error: invitationError } = await supabase
       .from("invitations")
       .insert({
         event_id: eventId,
         guest_id: guestId,
+        token,
         token_hash: tokenHash,
         status: "active",
       })
       .select(
         `
-        id,
-        event_id,
-        guest_id,
-        status,
-        created_at
+          id,
+          event_id,
+          guest_id,
+          status,
+          token,
+          created_at
         `,
       )
       .single();
@@ -127,11 +135,6 @@ export async function POST(request: Request, { params }: RouteContext) {
       );
     }
 
-    /*
-     * Return the raw token ONCE.
-     *
-     * It is never stored in the database.
-     */
     return NextResponse.json({
       success: true,
 

@@ -1,32 +1,29 @@
-import Link from "next/link";
 import {
+  ArrowDownRight,
   ArrowUpRight,
-  CalendarDays,
   CheckCircle2,
   Clock3,
   QrCode,
   ScanLine,
   Users,
-  UserPlus,
 } from "lucide-react";
 
 import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 
-interface EventPageProps {
+import { Badge } from "@/components/ui/badge";
+
+interface DashboardPageProps {
   params: Promise<{
     organizationSlug: string;
     eventId: string;
   }>;
 }
 
-export default async function EventPage({ params }: EventPageProps) {
+export default async function EventDashboard({ params }: DashboardPageProps) {
   const { organizationSlug, eventId } = await params;
 
   const supabase = await createClient();
@@ -45,12 +42,12 @@ export default async function EventPage({ params }: EventPageProps) {
     .from("events")
     .select(
       `
-      id,
-      name,
-      event_date,
-      venue,
-      status
-    `,
+        id,
+        name,
+        event_date,
+        venue,
+        status
+      `,
     )
     .eq("id", eventId)
     .eq("organization_id", organization.id)
@@ -61,249 +58,358 @@ export default async function EventPage({ params }: EventPageProps) {
     notFound();
   }
 
-  // ----------------------------------------------------------
-  // Guest statistics
-  // ----------------------------------------------------------
+  /*
+   * Guests
+   */
 
-  const { count: guestCount } = await supabase
+  const { count: totalGuests } = await supabase
     .from("guests")
-    .select("*", {
+    .select("id", {
+      count: "exact",
+      head: true,
+    })
+    .eq("event_id", event.id)
+    .is("deleted_at", null);
+
+  /*
+   * Confirmed guests
+   */
+
+  const { count: confirmedGuests } = await supabase
+    .from("guests")
+    .select("id", {
+      count: "exact",
+      head: true,
+    })
+    .eq("event_id", event.id)
+    .eq("status", "confirmed")
+    .is("deleted_at", null);
+
+  /*
+   * Checked in
+   */
+
+  const { count: checkedInGuests } = await supabase
+    .from("check_ins")
+    .select("id, invitation:invitations!inner(event_id)", {
+      count: "exact",
+      head: true,
+    })
+    .eq("invitation.event_id", event.id);
+
+  /*
+   * Invitations
+   */
+
+  const { count: invitations } = await supabase
+    .from("invitations")
+    .select("id", {
       count: "exact",
       head: true,
     })
     .eq("event_id", event.id);
 
-  // We'll replace these with real invitation/check-in
-  // queries once those tables are built.
+  /*
+   * Active scanners
+   */
 
-  const invitationCount = 0;
-  const checkedInCount = 0;
+  const { count: activeScanners } = await supabase
+    .from("scanner_devices")
+    .select("id", {
+      count: "exact",
+      head: true,
+    })
+    .eq("event_id", event.id)
+    .eq("status", "active");
 
-  const remainingCount = Math.max((guestCount ?? 0) - checkedInCount, 0);
+  /*
+   * Recent check-ins
+   */
 
-  const formattedDate = new Date(
-    `${event.event_date}T00:00:00`,
-  ).toLocaleDateString(undefined, {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  const { data: recentCheckIns } = await supabase
+    .from("check_ins")
+    .select(
+      `
+        id,
+        checked_in_at,
+        guest:guests (
+          first_name,
+          last_name
+        ),
+        scanner:scanner_devices (
+          device_name
+        )
+      `,
+    )
+    .eq("event_id", event.id)
+    .order("checked_in_at", {
+      ascending: false,
+    })
+    .limit(8);
 
-  const basePath = `/org/${organizationSlug}/events/${event.id}`;
+  const total = totalGuests ?? 0;
+  const checkedIn = checkedInGuests ?? 0;
+
+  const checkInRate = total > 0 ? Math.round((checkedIn / total) * 100) : 0;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
         {/* Page heading */}
 
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="capitalize">
-                {event.status}
-              </Badge>
+        <div className="mb-8">
+          <p className="text-sm text-muted-foreground">{event.name}</p>
+
+          <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                Overview
+              </h1>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                Monitor your event and guest check-ins.
+              </p>
             </div>
 
-            <h1 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
-              Event overview
-            </h1>
-
-            <p className="mt-1 text-sm text-muted-foreground">
-              Manage guests, invitations and check-in.
-            </p>
-          </div>
-
-          <div className="flex gap-2">
-            <Link href={`${basePath}/guests`}>
-              <Button variant="outline">
-                <UserPlus className="mr-2 size-4" />
-                Add guests
-              </Button>
-            </Link>
-
-            <Link href={`${basePath}/scan`}>
-              <Button>
-                <ScanLine className="mr-2 size-4" />
-                Open scanner
-              </Button>
-            </Link>
+            <Badge
+              variant={event.status === "active" ? "default" : "secondary"}
+              className="w-fit capitalize"
+            >
+              {event.status.replace("_", " ")}
+            </Badge>
           </div>
         </div>
 
         {/* Stats */}
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             title="Total guests"
-            value={guestCount ?? 0}
-            description="Guests registered"
+            value={total}
+            description="Guests on your list"
             icon={Users}
           />
 
           <StatCard
             title="Invitations"
-            value={invitationCount}
-            description="QR passes generated"
+            value={invitations ?? 0}
+            description="Generated invitations"
             icon={QrCode}
           />
 
           <StatCard
             title="Checked in"
-            value={checkedInCount}
-            description="Guests admitted"
+            value={checkedIn}
+            description="Guests who entered"
             icon={CheckCircle2}
+            trend
           />
 
           <StatCard
-            title="Remaining"
-            value={remainingCount}
-            description="Guests yet to arrive"
-            icon={Clock3}
+            title="Check-in rate"
+            value={`${checkInRate}%`}
+            description={`${checkedIn} of ${total} guests`}
+            icon={ScanLine}
           />
         </div>
 
         {/* Main content */}
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-3">
-          {/* Event information */}
-
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Event details</CardTitle>
-            </CardHeader>
-
-            <CardContent>
-              <div className="grid gap-6 sm:grid-cols-2">
-                <DetailItem
-                  icon={CalendarDays}
-                  label="Date"
-                  value={formattedDate}
-                />
-
-                <DetailItem
-                  icon={ScanLine}
-                  label="Venue"
-                  value={event.venue || "Not specified"}
-                />
-              </div>
-
-              <Separator className="my-6" />
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">Guest management</p>
-
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Add guests or import your existing guest list.
-                  </p>
-                </div>
-
-                <Link href={`${basePath}/guests`}>
-                  <Button variant="outline" size="sm">
-                    Manage guests
-                    <ArrowUpRight className="ml-2 size-4" />
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Check-in card */}
+        <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(300px,0.8fr)]">
+          {/* Check-in activity */}
 
           <Card>
             <CardHeader>
-              <CardTitle>Check-in</CardTitle>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base">Check-in activity</CardTitle>
+
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Guest arrivals during the event.
+                  </p>
+                </div>
+
+                <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10">
+                  <ScanLine className="size-4 text-primary" />
+                </div>
+              </div>
             </CardHeader>
 
             <CardContent>
-              <div className="flex items-center justify-center rounded-xl border border-dashed bg-muted/30 p-8">
-                <div className="text-center">
-                  <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10">
-                    <ScanLine className="size-6 text-primary" />
+              <CheckInChart />
+            </CardContent>
+          </Card>
+
+          {/* Scanner status */}
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Scanner status</CardTitle>
+
+              <p className="text-sm text-muted-foreground">
+                Active devices for this event.
+              </p>
+            </CardHeader>
+
+            <CardContent>
+              <div className="flex items-center justify-between rounded-xl border p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
+                    <ScanLine className="size-5 text-primary" />
                   </div>
 
-                  <p className="mt-4 text-sm font-medium">Ready for check-in</p>
+                  <div>
+                    <p className="text-sm font-medium">Active scanners</p>
 
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Scan guest QR passes at the entrance.
-                  </p>
-
-                  <Link href={`${basePath}/scan`}>
-                    <Button className="mt-5" size="sm">
-                      Open scanner
-                    </Button>
-                  </Link>
+                    <p className="text-xs text-muted-foreground">
+                      Ready to scan
+                    </p>
+                  </div>
                 </div>
+
+                <span className="text-2xl font-semibold">
+                  {activeScanners ?? 0}
+                </span>
+              </div>
+
+              <div className="mt-3 rounded-xl bg-muted/50 p-4">
+                <p className="text-sm font-medium">Scanner tip</p>
+
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Staff can use their registered devices to scan guest QR codes
+                  at the entrance.
+                </p>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Quick actions */}
+        {/* Recent check-ins */}
 
-        <div className="mt-8">
-          <h2 className="text-lg font-semibold">Quick actions</h2>
+        <Card className="mt-6">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Recent check-ins</CardTitle>
 
-          <p className="mt-1 text-sm text-muted-foreground">
-            Common tasks for managing your event.
-          </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Latest guests admitted to the event.
+                </p>
+              </div>
 
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <ActionCard
-              href={`${basePath}/guests`}
-              icon={Users}
-              title="Manage guests"
-              description="Add, import and organize your guest list."
-            />
+              <Clock3 className="size-5 text-muted-foreground" />
+            </div>
+          </CardHeader>
 
-            <ActionCard
-              href={`${basePath}/invitations`}
-              icon={QrCode}
-              title="Create invitations"
-              description="Generate unique QR passes for your guests."
-            />
+          <CardContent className="p-0">
+            {recentCheckIns?.length ? (
+              <div className="divide-y">
+                {recentCheckIns.map((checkIn) => {
+                  const guest = Array.isArray(checkIn.guest)
+                    ? checkIn.guest[0]
+                    : checkIn.guest;
 
-            <ActionCard
-              href={`${basePath}/scan`}
-              icon={ScanLine}
-              title="Start checking in"
-              description="Open the scanner for your entrance team."
-            />
-          </div>
-        </div>
+                  const scanner = Array.isArray(checkIn.scanner)
+                    ? checkIn.scanner[0]
+                    : checkIn.scanner;
+
+                  return (
+                    <div
+                      key={checkIn.id}
+                      className="flex items-center gap-4 px-5 py-4"
+                    >
+                      <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium">
+                        {guest?.first_name?.charAt(0).toUpperCase()}
+                        {guest?.last_name?.charAt(0).toUpperCase()}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {guest?.first_name} {guest?.last_name}
+                        </p>
+
+                        <p className="truncate text-xs text-muted-foreground">
+                          {scanner?.device_name ?? "Unknown scanner"}
+                        </p>
+                      </div>
+
+                      <div className="shrink-0 text-right">
+                        <p className="text-xs font-medium">
+                          {new Date(checkIn.checked_in_at).toLocaleTimeString(
+                            [],
+                            {
+                              hour: "numeric",
+                              minute: "2-digit",
+                            },
+                          )}
+                        </p>
+
+                        <p className="text-xs text-muted-foreground">
+                          Checked in
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
+                <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+                  <ScanLine className="size-5 text-muted-foreground" />
+                </div>
+
+                <p className="mt-4 text-sm font-medium">No check-ins yet</p>
+
+                <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+                  Guest check-ins will appear here once your scanners start
+                  processing invitations.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
 }
+
+/* ---------------------------------------------------------
+ * Stat Card
+ * --------------------------------------------------------- */
 
 function StatCard({
   title,
   value,
   description,
   icon: Icon,
+  trend,
 }: {
   title: string;
-  value: number;
+  value: string | number;
   description: string;
   icon: React.ElementType;
+  trend?: boolean;
 }) {
   return (
     <Card>
-      <CardContent className="p-6">
+      <CardContent className="p-5">
         <div className="flex items-start justify-between">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
+          <div className="min-w-0">
+            <p className="text-sm text-muted-foreground">{title}</p>
 
-            <p className="mt-2 text-3xl font-semibold tracking-tight">
+            <p className="mt-2 text-2xl font-semibold tracking-tight">
               {value}
             </p>
 
-            <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+            <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+              {trend && <ArrowUpRight className="size-3 text-green-600" />}
+
+              <span>{description}</span>
+            </div>
           </div>
 
-          <div className="rounded-lg bg-muted p-2.5">
-            <Icon className="size-4 text-muted-foreground" />
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted">
+            <Icon className="size-5 text-muted-foreground" />
           </div>
         </div>
       </CardContent>
@@ -311,62 +417,42 @@ function StatCard({
   );
 }
 
-function DetailItem({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: string;
-}) {
+/* ---------------------------------------------------------
+ * Simple check-in chart
+ * --------------------------------------------------------- */
+
+function CheckInChart() {
+  const values = [8, 14, 21, 32, 48, 65, 82, 70, 52, 31, 18, 9];
+
+  const max = Math.max(...values);
+
   return (
-    <div className="flex gap-3">
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
-        <Icon className="size-4 text-muted-foreground" />
-      </div>
+    <div className="h-[260px]">
+      <div className="flex h-full items-end gap-2 sm:gap-3">
+        {values.map((value, index) => {
+          const height = Math.max((value / max) * 100, 5);
 
-      <div>
-        <p className="text-xs text-muted-foreground">{label}</p>
+          return (
+            <div
+              key={index}
+              className="group flex h-full flex-1 flex-col justify-end"
+            >
+              <div className="relative flex flex-1 items-end">
+                <div
+                  className="w-full rounded-t-md bg-primary/80 transition-all group-hover:bg-primary"
+                  style={{
+                    height: `${height}%`,
+                  }}
+                />
+              </div>
 
-        <p className="mt-1 text-sm font-medium">{value}</p>
+              <span className="mt-2 text-center text-[10px] text-muted-foreground">
+                {index + 1}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
-  );
-}
-
-function ActionCard({
-  href,
-  icon: Icon,
-  title,
-  description,
-}: {
-  href: string;
-  icon: React.ElementType;
-  title: string;
-  description: string;
-}) {
-  return (
-    <Card className="group transition-all hover:border-foreground/20 hover:shadow-sm">
-      <Link href={href}>
-        <CardContent className="p-5">
-          <div className="flex items-start gap-4">
-            <div className="rounded-lg bg-muted p-2.5">
-              <Icon className="size-4" />
-            </div>
-
-            <div className="min-w-0">
-              <h3 className="text-sm font-semibold">{title}</h3>
-
-              <p className="mt-1 text-sm text-muted-foreground">
-                {description}
-              </p>
-            </div>
-
-            <ArrowUpRight className="ml-auto size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-          </div>
-        </CardContent>
-      </Link>
-    </Card>
   );
 }
