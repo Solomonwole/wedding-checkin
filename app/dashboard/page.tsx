@@ -40,7 +40,7 @@ export default async function DashboardRedirectPage() {
   }
 
   if (!membership) {
-    redirect("/onboarding");
+    redirect("/");
   }
 
   const organization = Array.isArray(membership.organizations)
@@ -48,7 +48,7 @@ export default async function DashboardRedirectPage() {
     : membership.organizations;
 
   if (!organization?.slug) {
-    redirect("/onboarding");
+    redirect("/");
   }
 
   if (membership.role === "staff") {

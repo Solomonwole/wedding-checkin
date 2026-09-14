@@ -1,12 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  CalendarDays,
-  ChevronDown,
-  Menu,
-  QrCode,
-} from "lucide-react";
+import { CalendarDays, ChevronDown, Menu, QrCode } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -59,9 +54,7 @@ export function EventHeader({
 
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <p className="truncate text-sm font-semibold">
-                  {eventName}
-                </p>
+                <p className="truncate text-sm font-semibold">{eventName}</p>
 
                 <ChevronDown className="hidden size-3.5 text-muted-foreground sm:block" />
               </div>
@@ -76,6 +69,16 @@ export function EventHeader({
         {/* Right */}
 
         <div className="flex items-center gap-2">
+          <Link href="/scanner">
+            <div className="hidden items-center gap-2 rounded-full border px-3 py-1.5 sm:flex">
+              <QrCode className="size-3.5 text-green-500" />
+
+              <span className="text-xs font-medium capitalize">
+                Scan Guests
+              </span>
+            </div>
+          </Link>
+
           <div className="hidden items-center gap-2 rounded-full border px-3 py-1.5 sm:flex">
             <span
               className={

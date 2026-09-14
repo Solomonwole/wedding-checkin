@@ -40,13 +40,13 @@ export async function middleware(request: NextRequest) {
    * If the user is already authenticated,
    * don't show the login page again.
    */
-  if (user && request.nextUrl.pathname === "/") {
-    const url = request.nextUrl.clone();
+  // if (user && request.nextUrl.pathname === "/") {
+  //   const url = request.nextUrl.clone();
 
-    url.pathname = "/dashboard";
+  //   url.pathname = "/dashboard";
 
-    return NextResponse.redirect(url);
-  }
+  //   return NextResponse.redirect(url);
+  // }
 
   if (!user && request.nextUrl.pathname === "/") {
     const url = request.nextUrl.clone();

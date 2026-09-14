@@ -21,6 +21,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { LogoutButton } from "../layout/logout-button";
 
 interface EventSidebarProps {
   organizationSlug: string;
@@ -86,11 +87,7 @@ export function EventSidebar({
     return pathname.startsWith(href);
   }
 
-  function NavigationContent({
-    mobile = false,
-  }: {
-    mobile?: boolean;
-  }) {
+  function NavigationContent({ mobile = false }: { mobile?: boolean }) {
     return (
       <div className="flex h-full flex-col">
         {/* Brand */}
@@ -106,9 +103,7 @@ export function EventSidebar({
             </div>
 
             <div className="leading-none">
-              <p className="font-semibold tracking-tight">
-                Wedding Checkin
-              </p>
+              <p className="font-semibold tracking-tight">Wedding Checkin</p>
 
               <p className="mt-1 text-[10px] text-muted-foreground">
                 Event management
@@ -181,6 +176,11 @@ export function EventSidebar({
           </nav>
         </div>
 
+        {/* Logout */}
+        <div className="mt-auto border-t p-3">
+          <LogoutButton />
+        </div>
+
         {/* Bottom */}
 
         <div className="border-t p-3">
@@ -211,10 +211,7 @@ export function EventSidebar({
       {/* Mobile */}
 
       <Sheet open={mobileOpen} onOpenChange={onMobileOpenChange}>
-        <SheetContent
-          side="left"
-          className="w-[280px] p-0 sm:w-[320px]"
-        >
+        <SheetContent side="left" className="w-[280px] p-0 sm:w-[320px]">
           <SheetHeader className="sr-only">
             <SheetTitle>Wedding Checkin navigation</SheetTitle>
           </SheetHeader>

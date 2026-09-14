@@ -49,7 +49,9 @@ export default function NewEventPage() {
 
       const createdEvent = result.event;
 
-      router.push(`/dashboard/events/${createdEvent.id}`);
+      router.push(
+        `/org/${createdEvent.organization_id}/events/${createdEvent.id}`,
+      );
 
       router.refresh();
     } catch {
