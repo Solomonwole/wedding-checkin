@@ -34,7 +34,7 @@ export default function ScannerPage() {
   const router = useRouter();
 
   const [activationCode, setActivationCode] = useState("");
-  const [scannerName, setScannerName] = useState("");
+  // const [scannerName, setScannerName] = useState("");
 
   const [scanner, setScanner] = useState<ScannerSession | null>(null);
 
@@ -131,7 +131,7 @@ export default function ScannerPage() {
 
       setScanner(data.scanner);
       setActivationCode("");
-      setScannerName("");
+      // setScannerName("");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Unable to activate scanner.",
@@ -146,7 +146,7 @@ export default function ScannerPage() {
 
     setScanner(null);
     setActivationCode("");
-    setScannerName("");
+    // setScannerName("");
     setError(null);
   }
 

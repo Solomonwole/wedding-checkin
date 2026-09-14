@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 
 import {
   Check,
-  CheckCircle2,
   Copy,
   Loader2,
   MessageCircle,
@@ -39,6 +38,7 @@ interface Invitation {
   used_at: string | null;
   revoked_at: string | null;
   created_at: string;
+   token: string | null;
 }
 
 interface CreatedInvitation {

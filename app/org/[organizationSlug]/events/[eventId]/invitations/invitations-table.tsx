@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 
 import {
-  Check,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -31,7 +30,7 @@ interface Invitation {
   id: string;
   status: string;
   sentAt: string | null;
-  token: string;
+  token: string | null;
   usedAt: string | null;
   revokedAt: string | null;
 }
@@ -135,20 +134,27 @@ export function InvitationsTable({
           method: "POST",
         },
       );
-      console.log(response);
 
       const data = (await response.json()) as {
         success?: boolean;
         error?: string;
+
         invitation?: {
           id: string;
           status: string;
           created_at: string;
         };
+
+        guest?: {
+          id: string;
+          firstName: string;
+          lastName: string;
+        };
+
         token?: string;
       };
 
-      if (!response.ok || !data.success || !data.invitation) {
+      if (!response.ok || !data.success || !data.invitation || !data.token) {
         throw new Error(data.error ?? "Unable to generate invitation.");
       }
 
@@ -157,12 +163,14 @@ export function InvitationsTable({
           guest.id === guestId
             ? {
                 ...guest,
+
                 invitation: {
                   id: data.invitation!.id,
                   status: data.invitation!.status,
                   sentAt: null,
                   usedAt: null,
                   revokedAt: null,
+                  token: data.token!,
                 },
               }
             : guest,
@@ -171,9 +179,7 @@ export function InvitationsTable({
 
       setSelectedIds((current) => current.filter((id) => id !== guestId));
 
-      if (data.token) {
-        await copyInvitationLink(data.token);
-      }
+      await copyInvitationLink(data.token);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Unable to generate invitation.",
@@ -205,22 +211,46 @@ export function InvitationsTable({
       const data = (await response.json()) as {
         success?: boolean;
         error?: string;
-        invitations?: Array<{
-          id: string;
-          guest_id: string;
+
+        created?: Array<{
+          guestId: string;
+          invitationId: string;
+          firstName: string;
+          lastName: string;
+          token: string;
           status: string;
         }>;
+
+        existing?: Array<{
+          guestId: string;
+          invitationId: string;
+          firstName: string;
+          lastName: string;
+          status: string;
+        }>;
+
+        failed?: Array<{
+          guestId: string;
+          error: string;
+        }>;
+
+        summary?: {
+          requested: number;
+          created: number;
+          existing: number;
+          failed: number;
+        };
       };
 
       if (!response.ok || !data.success) {
         throw new Error(data.error ?? "Unable to generate invitations.");
       }
 
-      const created = data.invitations ?? [];
+      const created = data.created ?? [];
 
       setGuests((current) =>
         current.map((guest) => {
-          const invitation = created.find((item) => item.guest_id === guest.id);
+          const invitation = created.find((item) => item.guestId === guest.id);
 
           if (!invitation) {
             return guest;
@@ -229,11 +259,12 @@ export function InvitationsTable({
           return {
             ...guest,
             invitation: {
-              id: invitation.id,
+              id: invitation.invitationId,
               status: invitation.status,
               sentAt: null,
               usedAt: null,
               revokedAt: null,
+              token: invitation.token,
             },
           };
         }),
@@ -344,13 +375,7 @@ Please keep this link and present your QR code at the entrance when you arrive.`
               <tr>
                 <th className="w-12 px-4 py-3">
                   <Checkbox
-                    checked={
-                      allCurrentPageSelected
-                        ? true
-                        : selectedGuests.length > 0
-                          ? "indeterminate"
-                          : false
-                    }
+                    checked={allCurrentPageSelected}
                     onCheckedChange={toggleCurrentPage}
                     aria-label="Select all guests on this page"
                   />
@@ -480,12 +505,19 @@ Please keep this link and present your QR code at the entrance when you arrive.`
 
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem
-                                onClick={() =>
+                                onClick={() => {
+                                  const token = guest.invitation?.token;
+
+                                  if (!token) {
+                                    setError("Invitation link is unavailable.");
+                                    return;
+                                  }
+
                                   shareOnWhatsApp(
-                                    guest.invitation!.token,
+                                    token,
                                     `${guest.firstName} ${guest.lastName}`,
-                                  )
-                                }
+                                  );
+                                }}
                               >
                                 <Send className="mr-2 size-4" />
                                 Share invitation
@@ -495,7 +527,14 @@ Please keep this link and present your QR code at the entrance when you arrive.`
                                 onClick={() => {
                                   console.log(guest.invitation!.token);
 
-                                  copyInvitationLink(guest.invitation!.token);
+                                  const token = guest.invitation?.token;
+
+                                  if (!token) {
+                                    setError("Invitation link is unavailable.");
+                                    return;
+                                  }
+
+                                  void copyInvitationLink(token);
                                 }}
                               >
                                 <Copy className="mr-2 size-4" />

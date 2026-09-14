@@ -5,7 +5,6 @@ import { useMemo, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
-  MoreHorizontal,
   Search,
   Trash2,
   UserRound,
@@ -29,14 +28,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
 import {
   Table,
   TableBody,
@@ -305,7 +296,7 @@ export function GuestTable({ guests, eventId }: GuestTableProps) {
             </span>
 
             <AlertDialog>
-              <AlertDialogTrigger asChild>
+              <AlertDialogTrigger>
                 <Button variant="destructive" size="sm" disabled={deleting}>
                   <Trash2 className="mr-2 size-4" />
                   Delete selected
@@ -359,7 +350,7 @@ export function GuestTable({ guests, eventId }: GuestTableProps) {
           <TableHeader>
             <TableRow>
               <TableHead className="w-12">
-                <Checkbox
+                {/* <Checkbox
                   checked={
                     allCurrentPageSelected
                       ? true
@@ -367,6 +358,11 @@ export function GuestTable({ guests, eventId }: GuestTableProps) {
                         ? "indeterminate"
                         : false
                   }
+                  onCheckedChange={toggleCurrentPage}
+                  aria-label="Select all guests on this page"
+                /> */}
+                <Checkbox
+                  checked={allCurrentPageSelected}
                   onCheckedChange={toggleCurrentPage}
                   aria-label="Select all guests on this page"
                 />
