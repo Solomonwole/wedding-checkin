@@ -47,11 +47,12 @@ export default function NewEventPage() {
         return;
       }
 
-      const createdEvent = result.event;
+      // const createdEvent = result.event;
 
-      router.push(
-        `/org/${createdEvent.organization_id}/events/${createdEvent.id}`,
-      );
+      // router.push(
+      //   `/org/${createdEvent.organization_id}/events/${createdEvent.id}`,
+      // );
+      router.push(`/`);
 
       router.refresh();
     } catch {

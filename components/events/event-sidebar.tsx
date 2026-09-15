@@ -151,6 +151,19 @@ export function EventSidebar({
           </p>
 
           <nav className="space-y-1">
+            <Link
+              href="/scanner"
+              onClick={() => mobile && onMobileOpenChange?.(false)}
+              className={cn(
+                "flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
+                pathname.startsWith("/scanner")
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              <ScanLine className="size-4.5" />
+              <span>Scan Guests</span>
+            </Link>
             {organizationNavigation.map((item) => {
               const href = `${organizationPath}/${item.segment}`;
 
